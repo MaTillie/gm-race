@@ -30,6 +30,15 @@ local function Race(id)
 
     local t1 = GetGameTimer() 
     local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped,true)
+    if (GetResourceState("myFuel") == "started") then
+		exports["myFuel"]:SetFuel(vehicle, 100)
+	elseif (GetResourceState("LegacyFuel") == "started") then
+		exports["LegacyFuel"]:SetFuel(vehicle, 100)
+	else
+		SetVehicleFuelLevel(vehicle, 100)
+	end
+
     local numCourse = tonumber(RaceId)  
     for j = 1, #Config.race[numCourse].checkpoint,1 do           
         local Blip = AddBlipForCoord(Config.race[numCourse].checkpoint[j].x, Config.race[numCourse].checkpoint[j].y, Config.race[numCourse].checkpoint[j].z)    
@@ -44,8 +53,10 @@ local function Race(id)
             local pos = GetEntityCoords(ped)
             local dist = #(pos - vector3(Config.race[numCourse].checkpoint[j]))               
             if dist < 25 then
-                RemoveBlip(Blip)
-                SetVehicleFixed(GetVehiclePedIsIn(ped,true))
+                RemoveBlip(Blip)                
+                SetVehicleFixed(veh)
+                
+                
                 if ((j+1) < #Config.race[numCourse].checkpoint) then
                     RemoveBlip(Blip2)
                 end
