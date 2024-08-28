@@ -1,6 +1,31 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local RaceId = 0
+local NumItRace = 0
 local Go = false
+local NewRaceL = {}
+local CreateMod = false
+local Fin = false
+local CurrentRace = {}
+
+local function PrintTable(t, indent)
+    indent = indent or 0
+    local prefix = string.rep(" ", indent)
+    if type(t) == "table" then
+        for k, v in pairs(t) do
+            if type(v) == "table" then
+                print(prefix .. tostring(k) .. ":")
+                exports.qbx_core:Notify(prefix .. tostring(k) .. ":")
+                PrintTable(v, indent + 2)
+            else
+                print(prefix .. tostring(k) .. ": " .. tostring(v))
+                exports.qbx_core:Notify(prefix .. tostring(k) .. ": " .. tostring(v))
+            end
+        end
+    else
+        print(prefix .. tostring(t))
+        exports.qbx_core:Notify(prefix .. tostring(t))
+    end
+end
 
 local function DrawText3D(x, y, z, text)
 	SetTextScale(0.35, 0.35)
@@ -38,13 +63,49 @@ local function Race(id)
 	else
 		SetVehicleFuelLevel(vehicle, 100)
 	end
+    
+    for i, checkpoint in ipairs(CurrentRace.checkpoint) do
+        local Blip = AddBlipForCoord(checkpoint.x, checkpoint.y, checkpoint.z)    
+        SetBlipColour(Blip, 3)
 
-    local numCourse = tonumber(RaceId)  
+        if CurrentRace.route then
+            SetBlipRoute(Blip, true)
+            SetBlipRouteColour(Blip, 3)           
+        end
+
+        local Blip2
+        if ((i+1) < #CurrentRace.checkpoint) then
+            Blip2 = AddBlipForCoord(CurrentRace.checkpoint[i+1].x, CurrentRace.checkpoint[i+1].y, CurrentRace.checkpoint[i+1].z)  
+        end
+
+        while true do
+            local pos = GetEntityCoords(ped)
+            local dist = #(pos - vector3(checkpoint))               
+            if dist < CurrentRace.precision then
+                RemoveBlip(Blip)     
+                if CurrentRace.repair then           
+                    SetVehicleFixed(veh)
+                end
+                
+                if ((i+1) < #CurrentRace.checkpoint) then
+                    RemoveBlip(Blip2)
+                end
+                break
+            end
+            Wait(100)
+        end
+
+    end
+
+   --[[ local numCourse = tonumber(RaceId)  
     for j = 1, #Config.race[numCourse].checkpoint,1 do           
         local Blip = AddBlipForCoord(Config.race[numCourse].checkpoint[j].x, Config.race[numCourse].checkpoint[j].y, Config.race[numCourse].checkpoint[j].z)    
         SetBlipColour(Blip, 3)
-        SetBlipRoute(Blip, true)
-        SetBlipRouteColour(Blip, 3)           
+        
+        if Config.race[numCourse].route then
+            SetBlipRoute(Blip, true)
+            SetBlipRouteColour(Blip, 3)           
+        end
         local Blip2
         if ((j+1) < #Config.race[numCourse].checkpoint) then
             Blip2 = AddBlipForCoord(Config.race[numCourse].checkpoint[j+1].x, Config.race[numCourse].checkpoint[j+1].y, Config.race[numCourse].checkpoint[j+1].z)  
@@ -53,9 +114,10 @@ local function Race(id)
             local pos = GetEntityCoords(ped)
             local dist = #(pos - vector3(Config.race[numCourse].checkpoint[j]))               
             if dist < 25 then
-                RemoveBlip(Blip)                
-                SetVehicleFixed(veh)
-                
+                RemoveBlip(Blip)     
+                if Config.race[numCourse].repair then           
+                    SetVehicleFixed(veh)
+                end
                 
                 if ((j+1) < #Config.race[numCourse].checkpoint) then
                     RemoveBlip(Blip2)
@@ -64,7 +126,7 @@ local function Race(id)
             end
             Wait(100)
         end
-    end
+    end]]--
     local t2 = GetGameTimer() 
     local t3 = t2-t1
     local t = math.floor(t3/1000)    
@@ -76,7 +138,7 @@ local function Race(id)
     Wait(1000)
     exports.qbx_core:Notify(msg, "success")
     --..("%02d:%02d"):format(t3.min, t3.sec)
-	TriggerServerEvent('gm_race:server:msg',RaceId, playerName,min,sec,t3)
+	TriggerServerEvent('gm_race:server:msg',RaceId, NumItRace,playerName,min,sec,t3)
 end
 
 
@@ -104,15 +166,16 @@ end)
 
 RegisterNetEvent('gm_race:client:prepare')
 
-AddEventHandler('gm_race:client:prepare', function(id)   
-local numCourse = tonumber(id)    
+AddEventHandler('gm_race:client:prepare', function(id,label,coord)   
+    local numCourse = tonumber(id)    
     local ped = PlayerPedId()
+    PrintTable(coord,0)
     CreateThread(function()
         while true do
             local pos = GetEntityCoords(ped)
-            local dist = #(pos - vector3(Config.race[numCourse].start))    
+            local dist = #(pos - vec3(coord.x,coord.y,coord.z))    
             if dist < 25 then
-                DrawText3D(Config.race[numCourse].start.x,Config.race[numCourse].start.y,Config.race[numCourse].start.z+1, "[E] Inscription")
+                DrawText3D(coord.x,coord.y,coord.z+1, "[E] Inscription "..label)
                 if IsControlJustPressed(0, 38) then
                     exports.qbx_core:Notify("Votre participation est enregistrée", "success")
                     Go = true
@@ -128,30 +191,16 @@ end)
 
 RegisterNetEvent('gm_race:client:start')
 
-AddEventHandler('gm_race:client:start', function(id)
-    local numCourse = tonumber(id)  
+AddEventHandler('gm_race:client:start', function(id,numRace,precision,repair,route,raceData)        
+    NumItRace = tonumber(numRace)  
     RaceId = tonumber(id)      
+    CurrentRace.precision = tonumber(precision)
+    CurrentRace.repair = repair
+    CurrentRace.route = route
+    CurrentRace.checkpoint = raceData
 end)
 
-local function PrintTable(t, indent)
-    indent = indent or 0
-    local prefix = string.rep(" ", indent)
-    if type(t) == "table" then
-        for k, v in pairs(t) do
-            if type(v) == "table" then
-                print(prefix .. tostring(k) .. ":")
-                exports.qbx_core:Notify(prefix .. tostring(k) .. ":")
-                PrintTable(v, indent + 2)
-            else
-                print(prefix .. tostring(k) .. ": " .. tostring(v))
-                exports.qbx_core:Notify(prefix .. tostring(k) .. ": " .. tostring(v))
-            end
-        end
-    else
-        print(prefix .. tostring(t))
-        exports.qbx_core:Notify(prefix .. tostring(t))
-    end
-end
+
 
 RegisterNetEvent('gm_race:client:msg')
 AddEventHandler('gm_race:client:msg', function(msg)
@@ -159,6 +208,10 @@ AddEventHandler('gm_race:client:msg', function(msg)
         print(msg)
         --TriggerEvent("chatMessage","[Course]", {255, 0, 0}, msg)  
     end    
+
+    if (CreateMod or Fin) then
+        exports.qbx_core:Notify(msg)
+    end
 end)
 
 RegisterNetEvent('gm_race:client:classement')
@@ -174,4 +227,38 @@ AddEventHandler('gm_race:client:endrace', function(raceId)
         RaceId = 0
         Go = false
     end    
+end)
+
+RegisterNetEvent('gm_race:client:newRace')
+AddEventHandler('gm_race:client:newRace', function(label,precision)
+    NewRaceL.label=label 
+    NewRaceL.precision=precision 
+    CreateMod = true
+    Fin = false
+    exports.qbx_core:Notify("Mode création activé")
+end)
+
+RegisterNetEvent('gm_race:client:addCheckpoint')
+AddEventHandler('gm_race:client:addCheckpoint', function(coords)
+    if (CreateMod) then
+        
+        if NewRaceL.checkpoint then
+            table.insert(NewRaceL.checkpoint, coords)
+        else
+            NewRaceL.checkpoint = {}
+            table.insert(NewRaceL.checkpoint, coords)
+        end
+
+        exports.qbx_core:Notify("Checkpoint ajouté")
+    else
+        exports.qbx_core:Notify("Le mode création n'est pas activé",'error')
+    end
+end)
+
+RegisterNetEvent('gm_race:client:saveRace')
+AddEventHandler('gm_race:client:saveRace', function(msg)
+    TriggerServerEvent('gm_race:server:saveRace',NewRaceL)
+    CreateMod = false
+    Fin = true
+    NewRaceL = {} 
 end)
