@@ -82,20 +82,22 @@ end)
 QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local src = source
     local id = tonumber(args[1])
+    print("id ".. id)
     local r = MySQL.query.await('SELECT MAX(numRace) as max FROM rankingace WHERE race=?', { id })
     local numRace = 0
-    if race then
+    if r then
         for i = 1, #r,1 do 
             if r[i].max then
-                numRace = r[i].max + 1
+                numRace = r[i].max 
             end
         end
     end
-
-    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race = ? and numRace=? order by ms desc', { id,numRace })
+    print("max ".. numRace)
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race=? and numRace=? order by ms desc', { id,numRace })
+    
     
     for i = 1, #result,1 do        
-        local dt = "["..#result-i+1.."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"
+        local dt = "["..#result-i+1 .."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"
         TriggerClientEvent('gm_race:client:classement', src,dt)      
         Wait(500)  
     end  
@@ -105,9 +107,9 @@ QBCore.Commands.Add('gmclassementgeneral', "Classement de la course", {{name = '
 	local src = source
     local id = tonumber(args[1])
 
-    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race = ? order by ms desc', { id })
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race=? order by ms desc', { id })
     for i = 1, #result,1 do        
-        local dt = "["..#result-i+1.."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"        
+        local dt = "["..#result-i+1 .."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"        
         TriggerClientEvent('gm_race:client:classement', src,dt)
         Wait(500)
     end     

@@ -6,6 +6,7 @@ local NewRaceL = {}
 local CreateMod = false
 local Fin = false
 local CurrentRace = {}
+local BlipsCreation = {}
 
 local function PrintTable(t, indent)
     indent = indent or 0
@@ -45,13 +46,20 @@ end
 
 local function Race(id)
     Wait(1000)
-    exports.qbx_core:Notify("3", "success")
-    Wait(1000)
-    exports.qbx_core:Notify("2", "success")
-    Wait(1000)
-    exports.qbx_core:Notify("1", "success")
-    Wait(1000)
-    exports.qbx_core:Notify("Go !", "success")
+    local depart
+    for i, checkpoint in ipairs(CurrentRace.checkpoint) do
+        depart = checkpoint
+        break
+    end
+
+    local cpt = 5
+
+    while cpt>0 do
+        exports.qbx_core:Notify(cpt,"inform",1000,"",'center-right')
+        Wait(1000)
+        cpt = cpt-1
+    end
+    exports.qbx_core:Notify("Go !", "inform",1000,"",'center-right')
 
     local t1 = GetGameTimer() 
     local ped = PlayerPedId()
@@ -98,36 +106,6 @@ local function Race(id)
 
     end
 
-   --[[ local numCourse = tonumber(RaceId)  
-    for j = 1, #Config.race[numCourse].checkpoint,1 do           
-        local Blip = AddBlipForCoord(Config.race[numCourse].checkpoint[j].x, Config.race[numCourse].checkpoint[j].y, Config.race[numCourse].checkpoint[j].z)    
-        SetBlipColour(Blip, 3)
-        
-        if Config.race[numCourse].route then
-            SetBlipRoute(Blip, true)
-            SetBlipRouteColour(Blip, 3)           
-        end
-        local Blip2
-        if ((j+1) < #Config.race[numCourse].checkpoint) then
-            Blip2 = AddBlipForCoord(Config.race[numCourse].checkpoint[j+1].x, Config.race[numCourse].checkpoint[j+1].y, Config.race[numCourse].checkpoint[j+1].z)  
-        end
-        while true do
-            local pos = GetEntityCoords(ped)
-            local dist = #(pos - vector3(Config.race[numCourse].checkpoint[j]))               
-            if dist < 25 then
-                RemoveBlip(Blip)     
-                if Config.race[numCourse].repair then           
-                    SetVehicleFixed(veh)
-                end
-                
-                if ((j+1) < #Config.race[numCourse].checkpoint) then
-                    RemoveBlip(Blip2)
-                end
-                break
-            end
-            Wait(100)
-        end
-    end]]--
     if(Go) then
         local t2 = GetGameTimer() 
         local t3 = t2-t1
@@ -261,6 +239,10 @@ AddEventHandler('gm_race:client:addCheckpoint', function(coords)
             table.insert(NewRaceL.checkpoint, coords)
         end
 
+        local Blip = AddBlipForCoord(coords.x, coords.y, coords.z)    
+        SetBlipColour(Blip, 3)
+        table.insert(BlipsCreation, Blip)
+
         exports.qbx_core:Notify("Checkpoint ajouté")
     else
         exports.qbx_core:Notify("Le mode création n'est pas activé",'error')
@@ -273,4 +255,9 @@ AddEventHandler('gm_race:client:saveRace', function(msg)
     CreateMod = false
     Fin = true
     NewRaceL = {} 
+
+    for i, Blip in ipairs(BlipsCreation) do
+        RemoveBlip(Blip)
+    end
+    
 end)
