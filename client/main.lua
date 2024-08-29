@@ -63,7 +63,7 @@ local function Race(id)
 	else
 		SetVehicleFuelLevel(vehicle, 100)
 	end
-    
+    print(CurrentRace.checkpoint)
     for i, checkpoint in ipairs(CurrentRace.checkpoint) do
         local Blip = AddBlipForCoord(checkpoint.x, checkpoint.y, checkpoint.z)    
         SetBlipColour(Blip, 3)
@@ -78,11 +78,12 @@ local function Race(id)
             Blip2 = AddBlipForCoord(CurrentRace.checkpoint[i+1].x, CurrentRace.checkpoint[i+1].y, CurrentRace.checkpoint[i+1].z)  
         end
 
-        while true do
+        while Go do
             local pos = GetEntityCoords(ped)
-            local dist = #(pos - vector3(checkpoint))               
+            local dist = #(pos - vector3(checkpoint.x,checkpoint.y,checkpoint.z))               
             if dist < CurrentRace.precision then
                 RemoveBlip(Blip)     
+
                 if CurrentRace.repair then           
                     SetVehicleFixed(veh)
                 end
@@ -127,18 +128,22 @@ local function Race(id)
             Wait(100)
         end
     end]]--
-    local t2 = GetGameTimer() 
-    local t3 = t2-t1
-    local t = math.floor(t3/1000)    
-    local min = math.floor(t/60)
-    local sec = t -min*60;
-    t3 = t3-t
-    local playerName = QBCore.Functions.GetPlayerData().charinfo.firstname .. " " .. QBCore.Functions.GetPlayerData().charinfo.lastname
-    local msg = playerName.." a fini la course en "..min..":"..sec.." "..t3
-    Wait(1000)
-    exports.qbx_core:Notify(msg, "success")
-    --..("%02d:%02d"):format(t3.min, t3.sec)
-	TriggerServerEvent('gm_race:server:msg',RaceId, NumItRace,playerName,min,sec,t3)
+    if(Go) then
+        local t2 = GetGameTimer() 
+        local t3 = t2-t1
+        local t = math.floor(t3/1000)    
+        local min = math.floor(t/60)
+        local sec = t -min*60;
+        t3 = t3-t
+        local playerName = QBCore.Functions.GetPlayerData().charinfo.firstname .. " " .. QBCore.Functions.GetPlayerData().charinfo.lastname
+        local msg = playerName.." a fini la course en "..min..":"..sec.." "..t3
+        Wait(1000)
+        exports.qbx_core:Notify(msg, "success",20000,"",'center-right')
+        --..("%02d:%02d"):format(t3.min, t3.sec)
+        TriggerServerEvent('gm_race:server:msg',RaceId, NumItRace,playerName,min,sec,t3)
+    else
+        exports.qbx_core:Notify("Course intérrompue", "error",10000,"",'center-right')
+    end
 end
 
 
@@ -197,7 +202,7 @@ AddEventHandler('gm_race:client:start', function(id,numRace,precision,repair,rou
     CurrentRace.precision = tonumber(precision)
     CurrentRace.repair = repair
     CurrentRace.route = route
-    CurrentRace.checkpoint = raceData
+    CurrentRace.checkpoint =  raceData
 end)
 
 
@@ -215,9 +220,16 @@ AddEventHandler('gm_race:client:msg', function(msg)
 end)
 
 RegisterNetEvent('gm_race:client:classement')
-AddEventHandler('gm_race:client:classement', function(msg)
-    PrintTable(msg)
-    --TriggerEvent("chatMessage","[Course]", {255, 0, 0}, msg)    
+AddEventHandler('gm_race:client:classement', function(t)
+    if type(t) == "table" then
+        for k, v in pairs(t) do
+            exports.qbx_core:Notify(tostring(k) .. ": " .. tostring(v), "inform",10000,"",'center-right')
+            wait(500)
+        end
+    else
+        print(tostring(t))
+        exports.qbx_core:Notify(tostring(t), "inform",10000,"",'center-right')
+    end
 end)
 
 RegisterNetEvent('gm_race:client:endrace')
