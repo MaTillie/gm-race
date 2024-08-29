@@ -1,9 +1,9 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
-function Start(id,numRace,precision,repair,route,raceData)	
+function Start(id,numRace,precision,repair,route,raceData,tour)	
 	local players = QBCore.Functions.GetQBPlayers()
     for _, v in pairs(players) do
-        TriggerClientEvent('gm_race:client:start', v.PlayerData.source,id,numRace,precision,repair,route,raceData)
+        TriggerClientEvent('gm_race:client:start', v.PlayerData.source,id,numRace,precision,repair,route,raceData,tour)
     end
 end
 
@@ -35,8 +35,14 @@ function Reset(id)
     end
 end
 
-QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)
+QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Numéro de course'},{name = 'tour', help = 'Nombre de tour'}}, true, function(source, args)
 	local id = tonumber(args[1])
+    local tour
+    if (args[2]) then
+        tour = tonumber(args[2])
+    else
+        tour = 1
+    end
     local raceData = {}
     local label = ""
     local precision = 25
@@ -60,7 +66,7 @@ QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Num
     local src = source
     local player = exports.qbx_core:GetPlayer(src)
 
-    local result1 = MySQL.query.await('SELECT MAX(numRace) as max FROM rankingace WHERE race=?', { id })
+    local result1 = MySQL.query.await('SELECT MAX(numRace) as max FROM gm_race_result WHERE race=?', { id })
     local numRace = 0
     if result1 then
         for i = 1, #result1,1 do 
@@ -70,7 +76,7 @@ QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Num
         end
     end
     
-	Start(id,numRace,precision,repair,route,raceData)
+	Start(id,numRace,precision,repair,route,raceData,tour)
 end)
 
 QBCore.Commands.Add('gmpreparerace', "Lance les préparatifs de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
@@ -83,7 +89,7 @@ QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', he
 	local src = source
     local id = tonumber(args[1])
     print("id ".. id)
-    local r = MySQL.query.await('SELECT MAX(numRace) as max FROM rankingace WHERE race=?', { id })
+    local r = MySQL.query.await('SELECT MAX(numRace) as max FROM gm_race_result WHERE race=?', { id })
     local numRace = 0
     if r then
         for i = 1, #r,1 do 
@@ -93,7 +99,7 @@ QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', he
         end
     end
     print("max ".. numRace)
-    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race=? and numRace=? order by ms desc', { id,numRace })
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race=? and numRace=? and tour=999 order by ms desc', { id,numRace })
     
     
     for i = 1, #result,1 do        
@@ -107,7 +113,7 @@ QBCore.Commands.Add('gmclassementgeneral', "Classement de la course", {{name = '
 	local src = source
     local id = tonumber(args[1])
 
-    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race=? order by ms desc', { id })
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race=? and tour=999 order by ms desc', { id })
     for i = 1, #result,1 do        
         local dt = "["..#result-i+1 .."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"        
         TriggerClientEvent('gm_race:client:classement', src,dt)
@@ -115,6 +121,17 @@ QBCore.Commands.Add('gmclassementgeneral', "Classement de la course", {{name = '
     end     
 end)
 
+QBCore.Commands.Add('gmclassementgeneraldetail', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+	local src = source
+    local id = tonumber(args[1])
+
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race=? and tour<>999 order by ms asc', { id })
+    for i = 1, #result,1 do        
+        local dt = "["..i .."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"        
+        TriggerClientEvent('gm_race:client:classement', src,dt)
+        Wait(500)
+    end     
+end)
 
 QBCore.Commands.Add('gmraces', "Liste des courses", {}, true, function(source, args)	
 	local src = source
@@ -123,7 +140,7 @@ QBCore.Commands.Add('gmraces', "Liste des courses", {}, true, function(source, a
     local result = MySQL.query.await('SELECT id, label FROM gm_race_races order by id',{})
     for i = 1, #result,1 do        
         local dt = "["..result[i].id.."] : "..result[i].label
-        
+        Wait(500)
         TriggerClientEvent('gm_race:client:classement', src,dt)
     end     
 end)
@@ -148,7 +165,7 @@ end
 RegisterNetEvent('gm_race:server:msg')
 AddEventHandler('gm_race:server:msg', function(raceId,numRace,playerName,min,sec,t3)	
     local msg = playerName.." a fini la course en "..min..":"..sec.." "..t3
-    local query = 'INSERT INTO `rankingace` (`race`,`numRace`, `player`, `min`, `sec`, `ms`) VALUES (:race, :numRace, :player, :min, :sec, :ms);'
+    local query = 'INSERT INTO `gm_race_result` (`race`,`numRace`, `player`, `min`, `sec`, `ms`) VALUES (:race, :numRace, :player, :min, :sec, :ms);'
 				local data = {
                     ['@race'] = tonumber(raceId),
                     ['@numRace'] = tonumber(numRace),
@@ -167,6 +184,30 @@ AddEventHandler('gm_race:server:msg', function(raceId,numRace,playerName,min,sec
     end
 end)	
 
+RegisterNetEvent('gm_race:server:savetour')
+AddEventHandler('gm_race:server:savetour', function(raceId,numRace,playerName,min,sec,t3,tour)	
+    local msg = playerName.." a fini le tour en "..min..":"..sec.." "..t3
+    local query = 'INSERT INTO `gm_race_result` (`race`,`numRace`, `player`, `min`, `sec`, `ms`,`tour`) VALUES (:race, :numRace, :player, :min, :sec, :ms, :tour);'
+				local data = {
+                    ['@race'] = tonumber(raceId),
+                    ['@numRace'] = tonumber(numRace),
+					['@player'] = playerName,
+					['@min'] = tonumber(min),
+                    ['@sec'] = tonumber(sec),
+                    ['@ms'] = tonumber(t3),
+                    ['@tour'] = tonumber(tour),
+				}
+				exports['oxmysql']:execute(query, data)		
+
+    
+	local players = QBCore.Functions.GetQBPlayers()
+    
+    for _, v in pairs(players) do
+        TriggerClientEvent('gm_race:client:msg', v.PlayerData.source,msg)
+    end
+end)	
+
+
 QBCore.Commands.Add('gmenderace', "Termine la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local id = tonumber(args[1])
 	local players = QBCore.Functions.GetQBPlayers()
@@ -176,7 +217,7 @@ QBCore.Commands.Add('gmenderace', "Termine la course", {{name = 'id', help = 'Nu
 end)
 
 
-QBCore.Commands.Add('gmcreaterace', "creation d'une course", {{name = 'nom', help = 'Nom de la course'},{name = 'precision', help = 'Distance de validation des checkpoints'}}, true, function(source, args)	
+QBCore.Commands.Add('gmcreaterace', "Creation d'une course", {{name = 'nom', help = 'Nom de la course'},{name = 'precision', help = 'Distance de validation des checkpoints'}}, true, function(source, args)	
 	local src = source
     local precision = tonumber(args[2])
     local flg = true
@@ -203,7 +244,7 @@ QBCore.Commands.Add('gmcreaterace', "creation d'une course", {{name = 'nom', hel
         TriggerClientEvent('gm_race:client:newRace', src,args[1],precision)
     end
 
-    local result = MySQL.query.await('SELECT player, min, sec, ms FROM rankingace WHERE race = ? order by ms desc', { id })
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race = ? order by ms desc', { id })
     for i = 1, #result,1 do        
         local dt = result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"
         

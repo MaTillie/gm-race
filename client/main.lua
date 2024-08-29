@@ -45,67 +45,78 @@ end
 
 
 local function Race(id)
-    Wait(1000)
     local depart
     for i, checkpoint in ipairs(CurrentRace.checkpoint) do
         depart = checkpoint
         break
-    end
-
-    local cpt = 5
+    end    
+    exports.qbx_core:Notify("Préparez vous, nombre de tour(s) : "..CurrentRace.tour,"inform",5000,"",'center-right')
+    Wait(5000)
+    local cpt = 3
 
     while cpt>0 do
         exports.qbx_core:Notify(cpt,"inform",1000,"",'center-right')
         Wait(1000)
         cpt = cpt-1
     end
+
     exports.qbx_core:Notify("Go !", "inform",1000,"",'center-right')
 
     local t1 = GetGameTimer() 
+    local tTour 
     local ped = PlayerPedId()
     local veh = GetVehiclePedIsIn(ped,true)
-    if (GetResourceState("myFuel") == "started") then
-		exports["myFuel"]:SetFuel(vehicle, 100)
-	elseif (GetResourceState("LegacyFuel") == "started") then
-		exports["LegacyFuel"]:SetFuel(vehicle, 100)
-	else
-		SetVehicleFuelLevel(vehicle, 100)
-	end
+
     print(CurrentRace.checkpoint)
-    for i, checkpoint in ipairs(CurrentRace.checkpoint) do
-        local Blip = AddBlipForCoord(checkpoint.x, checkpoint.y, checkpoint.z)    
-        SetBlipColour(Blip, 3)
+    for tr=1 , CurrentRace.tour , 1 do
+        tTour =GetGameTimer()  
+        for i, checkpoint in ipairs(CurrentRace.checkpoint) do
+            local Blip = AddBlipForCoord(checkpoint.x, checkpoint.y, checkpoint.z)    
+            SetBlipColour(Blip, 3)
 
-        if CurrentRace.route then
-            SetBlipRoute(Blip, true)
-            SetBlipRouteColour(Blip, 3)           
-        end
-
-        local Blip2
-        if ((i+1) < #CurrentRace.checkpoint) then
-            Blip2 = AddBlipForCoord(CurrentRace.checkpoint[i+1].x, CurrentRace.checkpoint[i+1].y, CurrentRace.checkpoint[i+1].z)  
-        end
-
-        while Go do
-            local pos = GetEntityCoords(ped)
-            local dist = #(pos - vector3(checkpoint.x,checkpoint.y,checkpoint.z))               
-            if dist < CurrentRace.precision then
-                RemoveBlip(Blip)     
-
-                if CurrentRace.repair then           
-                    SetVehicleFixed(veh)
-                end
-                
-                if ((i+1) < #CurrentRace.checkpoint) then
-                    RemoveBlip(Blip2)
-                end
-                break
+            if CurrentRace.route then
+                SetBlipRoute(Blip, true)
+                SetBlipRouteColour(Blip, 3)           
             end
-            Wait(100)
+
+            local Blip2
+            if ((i+1) < #CurrentRace.checkpoint) then
+                Blip2 = AddBlipForCoord(CurrentRace.checkpoint[i+1].x, CurrentRace.checkpoint[i+1].y, CurrentRace.checkpoint[i+1].z)  
+            end
+
+            while Go do
+                local pos = GetEntityCoords(ped)
+                local dist = #(pos - vector3(checkpoint.x,checkpoint.y,checkpoint.z))               
+                if dist < CurrentRace.precision then
+                    RemoveBlip(Blip)     
+
+                    if CurrentRace.repair then           
+                        SetVehicleFixed(veh)
+                    end
+                    
+                    if ((i+1) < #CurrentRace.checkpoint) then
+                        RemoveBlip(Blip2)
+                    end
+                    break
+                end
+                Wait(100)
+            end
         end
 
+        if(Go) then
+            local t2 = GetGameTimer() 
+            local t3 = t2-tTour
+            local t = math.floor(t3/1000)    
+            local min = math.floor(t/60)
+            local sec = t -min*60;
+            t3 = t3-t
+            local playerName = QBCore.Functions.GetPlayerData().charinfo.firstname .. " " .. QBCore.Functions.GetPlayerData().charinfo.lastname
+            local msg = playerName.." a fini le tour en "..min..":"..sec.." "..t3
+            exports.qbx_core:Notify(msg, "success",5000,"",'center-right')
+            --..("%02d:%02d"):format(t3.min, t3.sec)
+            TriggerServerEvent('gm_race:server:savetour',RaceId, NumItRace,playerName,min,sec,t3,tr) 
+        end
     end
-
     if(Go) then
         local t2 = GetGameTimer() 
         local t3 = t2-t1
@@ -174,13 +185,14 @@ end)
 
 RegisterNetEvent('gm_race:client:start')
 
-AddEventHandler('gm_race:client:start', function(id,numRace,precision,repair,route,raceData)        
+AddEventHandler('gm_race:client:start', function(id,numRace,precision,repair,route,raceData,tour)        
     NumItRace = tonumber(numRace)  
     RaceId = tonumber(id)      
     CurrentRace.precision = tonumber(precision)
     CurrentRace.repair = repair
     CurrentRace.route = route
     CurrentRace.checkpoint =  raceData
+    CurrentRace.tour=tour
 end)
 
 
