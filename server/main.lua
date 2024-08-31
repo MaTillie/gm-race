@@ -35,7 +35,7 @@ function Reset(id)
     end
 end
 
-QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Numéro de course'},{name = 'tour', help = 'Nombre de tour'}}, true, function(source, args)
+QBCore.Commands.Add('gmr_start', "Lance la course", {{name = 'id', help = 'Numéro de course'},{name = 'tour', help = 'Nombre de tour'}}, true, function(source, args)
 	local id = tonumber(args[1])
     local tour
     if (args[2]) then
@@ -50,7 +50,7 @@ QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Num
     local route = true
     local track = {}
 
-    local result = MySQL.query.await('SELECT label,`precision`,repair,checkpoint FROM gm_race_races where id=? ',{id})
+    local result = MySQL.query.await('SELECT label,`precision`,repair,checkpoint,route FROM gm_race_races where id=? ',{id})
     if result then
         for i = 1, #result,1 do 
             local json = require("json") 
@@ -79,16 +79,16 @@ QBCore.Commands.Add('gmstartrace', "Lance la course", {{name = 'id', help = 'Num
 	Start(id,numRace,precision,repair,route,raceData,tour)
 end)
 
-QBCore.Commands.Add('gmpreparerace', "Lance les préparatifs de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_prepare', "Lance les préparatifs de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local id = tonumber(args[1])
 	Prepare(id)
 end)
 
 
-QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_ranking', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local src = source
     local id = tonumber(args[1])
-    print("id ".. id)
+    
     local r = MySQL.query.await('SELECT MAX(numRace) as max FROM gm_race_result WHERE race=?', { id })
     local numRace = 0
     if r then
@@ -98,7 +98,7 @@ QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', he
             end
         end
     end
-    print("max ".. numRace)
+    
     local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race=? and numRace=? and tour=999 order by ms desc', { id,numRace })
     
     
@@ -109,7 +109,31 @@ QBCore.Commands.Add('gmclassement', "Classement de la course", {{name = 'id', he
     end  
 end)
 
-QBCore.Commands.Add('gmclassementgeneral', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_rankingdet', "Classement de la course détaillée", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+	local src = source
+    local id = tonumber(args[1])
+    
+    local r = MySQL.query.await('SELECT MAX(numRace) as max FROM gm_race_result WHERE race=?', { id })
+    local numRace = 0
+    if r then
+        for i = 1, #r,1 do 
+            if r[i].max then
+                numRace = r[i].max 
+            end
+        end
+    end
+    
+    local result = MySQL.query.await('SELECT player, min, sec, ms FROM gm_race_result WHERE race=? and numRace=? and tour<>999 order by ms desc', { id,numRace })
+    
+    
+    for i = 1, #result,1 do        
+        local dt = "["..#result-i+1 .."]".. result[i].player.."  en: "..result[i].min..":"..result[i].sec.." ("..result[i].ms..")"
+        TriggerClientEvent('gm_race:client:classement', src,dt)      
+        Wait(500)  
+    end  
+end)
+
+QBCore.Commands.Add('gmr_rankinggene', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local src = source
     local id = tonumber(args[1])
 
@@ -121,7 +145,7 @@ QBCore.Commands.Add('gmclassementgeneral', "Classement de la course", {{name = '
     end     
 end)
 
-QBCore.Commands.Add('gmclassementgeneraldetail', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_rankinggenedet', "Classement de la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local src = source
     local id = tonumber(args[1])
 
@@ -133,7 +157,7 @@ QBCore.Commands.Add('gmclassementgeneraldetail', "Classement de la course", {{na
     end     
 end)
 
-QBCore.Commands.Add('gmraces', "Liste des courses", {}, true, function(source, args)	
+QBCore.Commands.Add('gmr_liste', "Liste des courses", {}, true, function(source, args)	
 	local src = source
     local id = tonumber(args[1])
 
@@ -208,7 +232,7 @@ AddEventHandler('gm_race:server:savetour', function(raceId,numRace,playerName,mi
 end)	
 
 
-QBCore.Commands.Add('gmenderace', "Termine la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_stop', "Termine la course", {{name = 'id', help = 'Numéro de course'}}, true, function(source, args)	
 	local id = tonumber(args[1])
 	local players = QBCore.Functions.GetQBPlayers()
     for _, v in pairs(players) do
@@ -217,7 +241,7 @@ QBCore.Commands.Add('gmenderace', "Termine la course", {{name = 'id', help = 'Nu
 end)
 
 
-QBCore.Commands.Add('gmcreaterace', "Creation d'une course", {{name = 'nom', help = 'Nom de la course'},{name = 'precision', help = 'Distance de validation des checkpoints'}}, true, function(source, args)	
+QBCore.Commands.Add('gmr_create', "Creation d'un circuit", {{name = 'nom', help = 'Nom de la course'},{name = 'precision', help = 'Distance de validation des checkpoints'}}, true, function(source, args)	
 	local src = source
     local precision = tonumber(args[2])
     local flg = true
@@ -252,7 +276,7 @@ QBCore.Commands.Add('gmcreaterace', "Creation d'une course", {{name = 'nom', hel
     end     
 end)
 
-QBCore.Commands.Add('gmadd', "Ajoute un checkpoint à la course", {}, true, function(source, args)	
+QBCore.Commands.Add('gmr_add', "Ajoute un checkpoint à la course", {}, true, function(source, args)	
     local player = source
     local ped = GetPlayerPed(player)
     local playerCoords = GetEntityCoords(ped)
@@ -260,9 +284,23 @@ QBCore.Commands.Add('gmadd', "Ajoute un checkpoint à la course", {}, true, func
     TriggerClientEvent('gm_race:client:addCheckpoint', player,playerCoords)   
 end)
 
-QBCore.Commands.Add('gmsaverace', "Sauvegarde la course en cours de création", {}, true, function(source, args)	
+QBCore.Commands.Add('gmr_remove', "Retire le dernier checkpoint ajouté", {}, true, function(source, args)	
+    local player = source
+    local ped = GetPlayerPed(player)
+    local playerCoords = GetEntityCoords(ped)
+        
+    TriggerClientEvent('gm_race:client:removeCheckpoint', player,playerCoords)   
+end)
+
+QBCore.Commands.Add('gmr_save', "Sauvegarde la course en cours de création", {}, true, function(source, args)	
     local src = source
     TriggerClientEvent('gm_race:client:saveRace', src, "")  
+    
+end)
+
+QBCore.Commands.Add('gmr_cancel', "Annule le circuit en cours de création", {}, true, function(source, args)	
+    local src = source
+    TriggerClientEvent('gm_race:client:cancelRace', src, "")  
     
 end)
 

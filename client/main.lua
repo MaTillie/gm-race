@@ -147,23 +147,11 @@ local function WaitStartRace(id)
     Race(numCourse)
 end
 
-RegisterCommand('ptrace', function(source, args)
-    local i = tonumber(args[1])
-        for j = 1, #Config.race[i].checkpoint,1 do
-            local Blip = AddBlipForCoord(Config.race[i].checkpoint[j].x, Config.race[i].checkpoint[j].y, Config.race[i].checkpoint[j].z)    
-            SetBlipColour(Blip, 3)
-            DrawMarker(23, Config.race[i].checkpoint[j].x, Config.race[i].checkpoint[j].y, Config.race[i].checkpoint[j].z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0)                    
-                 
-        end
-    
-end)
-
 RegisterNetEvent('gm_race:client:prepare')
 
 AddEventHandler('gm_race:client:prepare', function(id,label,coord)   
     local numCourse = tonumber(id)    
     local ped = PlayerPedId()
-    PrintTable(coord,0)
     CreateThread(function()
         while true do
             local pos = GetEntityCoords(ped)
@@ -190,6 +178,7 @@ AddEventHandler('gm_race:client:start', function(id,numRace,precision,repair,rou
     RaceId = tonumber(id)      
     CurrentRace.precision = tonumber(precision)
     CurrentRace.repair = repair
+    print(route)
     CurrentRace.route = route
     CurrentRace.checkpoint =  raceData
     CurrentRace.tour=tour
@@ -261,6 +250,16 @@ AddEventHandler('gm_race:client:addCheckpoint', function(coords)
     end
 end)
 
+RegisterNetEvent('gm_race:client:removeCheckpoint')
+AddEventHandler('gm_race:client:removeCheckpoint', function(coords)
+    if (CreateMod) then
+        table.remove(NewRaceL.checkpoint)
+        RemoveBlip(table.remove(BlipsCreation))
+        exports.qbx_core:Notify("Point retiré")
+    end
+end)
+
+
 RegisterNetEvent('gm_race:client:saveRace')
 AddEventHandler('gm_race:client:saveRace', function(msg)
     TriggerServerEvent('gm_race:server:saveRace',NewRaceL)
@@ -273,3 +272,15 @@ AddEventHandler('gm_race:client:saveRace', function(msg)
     end
     
 end)
+
+RegisterNetEvent('gm_race:client:cancelRace')
+AddEventHandler('gm_race:client:cancelRace', function(msg)
+    CreateMod = false
+    Fin = true
+    NewRaceL = {} 
+    for i, Blip in ipairs(BlipsCreation) do
+        RemoveBlip(Blip)
+    end
+    exports.qbx_core:Notify("Création de circuit anulée")
+end)
+
