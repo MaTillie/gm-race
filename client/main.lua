@@ -7,6 +7,7 @@ local CreateMod = false
 local Fin = false
 local CurrentRace = {}
 local BlipsCreation = {}
+local EndedRace ={}
 
 local function PrintTable(t, indent)
     indent = indent or 0
@@ -154,6 +155,9 @@ AddEventHandler('gm_race:client:prepare', function(id,label,coord)
     local ped = PlayerPedId()
     CreateThread(function()
         while true do
+            if(RaceId == numCourse) then
+                break
+            end
             local pos = GetEntityCoords(ped)
             local dist = #(pos - vec3(coord.x,coord.y,coord.z))    
             if dist < 25 then
@@ -213,11 +217,11 @@ end)
 
 RegisterNetEvent('gm_race:client:endrace')
 
-AddEventHandler('gm_race:client:endrace', function(raceId)
+AddEventHandler('gm_race:client:endrace', function(raceId)    
     if (raceId == RaceId) then
         RaceId = 0
         Go = false
-    end    
+    end  
 end)
 
 RegisterNetEvent('gm_race:client:newRace')
