@@ -29,7 +29,7 @@ gmr_cancel {} :
     Annule la création de circuit 
 
 gmr_save {} :
-    Sauvegarde lr circuit qui est en cours de création
+    Sauvegarde le circuit qui est en cours de création
 
 gmr_ranking {{name = 'id', help = 'Numéro du circuit'}} :
     Donne le classement de la dernière course effectuée sur le circuit de numéro id. Si la course avait plusieurs tour, ne donne que le résultat de la course entière.
